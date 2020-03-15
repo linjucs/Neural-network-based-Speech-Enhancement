@@ -1,4 +1,4 @@
-mport os
+import os
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -9,6 +9,7 @@ class DNN(nn.Module):
 	Deep Neural networks (DNN)
     """
     def __init__(self, input_size, hidden_size, out_size, dropout_drop=0.5):
+        super(DNN, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
         self.relu1 = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, hidden_size)

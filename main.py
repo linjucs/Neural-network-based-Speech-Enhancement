@@ -1,6 +1,6 @@
 import argparse
 import os
-
+import time
 import torch
 import torch.nn as nn
 from scipy.io import wavfile
@@ -8,7 +8,7 @@ from torch import optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
+from tensorboardX import SummaryWriter
 #from data_preprocess import sample_rate
 from model import DNN
 from dataset import AudioSampleGenerator, split_pair_to_vars, de_emphasis
@@ -17,20 +17,27 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Audio Enhancement')
     parser.add_argument('--batch_size', default=50, type=int, help='train batch size')
     parser.add_argument('--num_epochs', default=100, type=int, help='training epochs')
+    parser.add_argument('--hidden_size', default=2048, type=int, help='hidden size')
+    parser.add_argument('--input_size', default=16384, type=int, help='input size')
+    parser.add_argument('--output_size', default=16384, type=int, help='output size')
     parser.add_argument('--num_gen_examples', default=10, type=int, help='test samples when training')
     parser.add_argument('--sample_rate', default=16000, type=int, help='audio sample rate')
     parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
-    parser.add_argument('--num_epochs', default=86, type=int, help='train epochs number')
     parser.add_argument('--output_dir', default="segan_data_out", type=str, help='output dir')
     parser.add_argument('--ser_dir', default="ser_data", type=str, help='serialized data')
     parser.add_argument('--gen_data_dir', default="gen_data", type=str, help='folder for saving generated data')
     parser.add_argument('--checkpoint_dir', default="checkpoints", type=str, help='folder for saving models, optimizer states')
     parser.add_argument('--log_dir', default="logs", type=str, help='summary data for tensorboard')
+    parser.add_argument('--data_root_dir', default="/scratch4/jul/interspeech2020/training", type=str, help='root of data folder')
     opt = parser.parse_args()
-    BATCH_SIZE = opt.batch_size
+    batch_size = opt.batch_size
+    in_path = opt.data_root_dir
     lr = opt.lr
     num_gen_examples = opt.num_gen_examples
     num_epochs = opt.num_epochs
+    hidden_size = opt.hidden_size
+    input_size = opt.input_size
+    out_size = opt.output_size
     sample_rate = opt.sample_rate
     out_path_root = opt.output_dir
     num_epochs = opt.num_epochs
@@ -56,7 +63,9 @@ if __name__ == '__main__':
     checkpoint_path = os.path.join(out_path, checkpoint_fdr)
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path)
-    DNN = torch.nn.DataParallel(DNN().to(device), device_ids=use_devices)  # use GPU
+    DNN = DNN(input_size, hidden_size, out_size)
+    DNN = torch.nn.DataParallel(DNN.to(device), device_ids=use_devices)  # use GPU
+    print(DNN)
     # load data
     print('loading data...')
     sample_generator = AudioSampleGenerator(os.path.join(in_path, ser_data_fdr))
@@ -99,6 +108,9 @@ if __name__ == '__main__':
         tbwriter.add_scalar('epoch', epoch, total_steps)
         for i, sample_batch_pairs in enumerate(random_data_loader):
             batch_pairs_var, clean_batch_var, noisy_batch_var = split_pair_to_vars(sample_batch_pairs)
+            batch_pairs_var = batch_pairs_var.to(device)
+            clean_batch_var = clean_batch_var.to(device)
+            noisy_batch_var = noisy_batch_var.to(device)
             outputs = DNN(noisy_batch_var)
             loss = MSE(outputs, clean_batch_var)
             # back-propagate and update
@@ -106,16 +118,17 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             if (i + 1) % 20 == 0:
-            print(
-                'Epoch {}\t'
-                'Step {}\t'
-                'loss {:.5f}'
-                .format(epoch + 1, i + 1, loss.item(), clean_loss.item()))
+                print(
+                    'Epoch {}\t'
+                    'Step {}\t'
+                    'loss {:.5f}'
+                    .format(epoch + 1, i + 1, loss.item()))
             # record scalar data for tensorboard
             tbwriter.add_scalar('loss/loss', loss.item(), total_steps)
             if i == 0:
                 enh_speech = DNN(fixed_test_noise)
                 enh_speech_data = enh_speech.data.cpu().numpy()  # convert to numpy array
+                #print(enh_speech_data)
                 enh_speech_data = de_emphasis(enh_speech_data, emph_coeff=0.95)
 
             for idx in range(num_gen_examples):

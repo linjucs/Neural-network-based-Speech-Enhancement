@@ -46,11 +46,11 @@ def split_pair_to_vars(sample_batch_pair):
     # pre-emphasis
     sample_batch_pair = pre_emphasis(sample_batch_pair.numpy(), emph_coeff=0.95)
 
-    batch_pairs_var = torch.from_numpy(sample_batch_pair).type(torch.FloatTensor).to(device)  # [40 x 2 x 16384]
+    batch_pairs_var = torch.from_numpy(sample_batch_pair).type(torch.FloatTensor)  # [40 x 2 x 16384]
     clean_batch = np.stack([pair[0].reshape(1, -1) for pair in sample_batch_pair])
-    clean_batch_var = torch.from_numpy(clean_batch).type(torch.FloatTensor).to(device)
+    clean_batch_var = torch.from_numpy(clean_batch).type(torch.FloatTensor)
     noisy_batch = np.stack([pair[1].reshape(1, -1) for pair in sample_batch_pair])
-    noisy_batch_var = torch.from_numpy(noisy_batch).type(torch.FloatTensor).to(device)
+    noisy_batch_var = torch.from_numpy(noisy_batch).type(torch.FloatTensor)
     return batch_pairs_var, clean_batch_var, noisy_batch_var
 
 class AudioSampleGenerator(data.Dataset):
