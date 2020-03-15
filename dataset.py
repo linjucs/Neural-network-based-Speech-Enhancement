@@ -2,7 +2,56 @@ import torch
 from torch.utils import data
 import numpy as np
 import os
+from scipy import signal
 
+def pre_emphasis(signal_batch, emph_coeff=0.95) -> np.array:
+    """
+    Pre-emphasis of higher frequencies given a batch of signal.
+    Args:
+        signal_batch(np.array): batch of signals, represented as numpy arrays
+        emph_coeff(float): emphasis coefficient
+    Returns:
+        result: pre-emphasized signal batch
+    """
+    return signal.lfilter([1, -emph_coeff], [1], signal_batch)
+
+
+def de_emphasis(signal_batch, emph_coeff=0.95) -> np.array:
+    """
+    De-emphasis operation given a batch of signal.
+    Reverts the pre-emphasized signal.
+    Args:
+        signal_batch(np.array): batch of signals, represented as numpy arrays
+        emph_coeff(float): emphasis coefficient
+    Returns:
+        result: de-emphasized signal batch
+    """
+    return signal.lfilter([1], [1, -emph_coeff], signal_batch)
+
+def split_pair_to_vars(sample_batch_pair):
+    """
+    Splits the generated batch data and creates combination of pairs.
+    Input argument sample_batch_pair consists of a batch_size number of
+    [clean_signal, noisy_signal] pairs.
+    This function creates three pytorch Variables - a clean_signal, noisy_signal pair,
+    clean signal only, and noisy signal only.
+    It goes through preemphasis preprocessing before converted into variable.
+    Args:
+        sample_batch_pair(torch.Tensor): batch of [clean_signal, noisy_signal] pairs
+    Returns:
+        batch_pairs_var(Variable): batch of pairs containing clean signal and noisy signal
+        clean_batch_var(Variable): clean signal batch
+        noisy_batch_var(Varialbe): noisy signal batch
+    """
+    # pre-emphasis
+    sample_batch_pair = pre_emphasis(sample_batch_pair.numpy(), emph_coeff=0.95)
+
+    batch_pairs_var = torch.from_numpy(sample_batch_pair).type(torch.FloatTensor).to(device)  # [40 x 2 x 16384]
+    clean_batch = np.stack([pair[0].reshape(1, -1) for pair in sample_batch_pair])
+    clean_batch_var = torch.from_numpy(clean_batch).type(torch.FloatTensor).to(device)
+    noisy_batch = np.stack([pair[1].reshape(1, -1) for pair in sample_batch_pair])
+    noisy_batch_var = torch.from_numpy(noisy_batch).type(torch.FloatTensor).to(device)
+    return batch_pairs_var, clean_batch_var, noisy_batch_var
 
 class AudioSampleGenerator(data.Dataset):
     """
