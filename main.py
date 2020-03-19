@@ -63,9 +63,9 @@ if __name__ == '__main__':
     checkpoint_path = os.path.join(out_path, checkpoint_fdr)
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path)
-    DNN = DNN(input_size, hidden_size, out_size)
-    DNN = torch.nn.DataParallel(DNN.to(device), device_ids=use_devices)  # use GPU
-    print(DNN)
+    model = DNN(input_size, hidden_size, out_size)
+    model = torch.nn.DataParallel(model.to(device), device_ids=use_devices)  # use GPU
+    print(model)
     # load data
     print('loading data...')
     sample_generator = AudioSampleGenerator(os.path.join(in_path, ser_data_fdr))
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         drop_last=True,  # drop the last batch that cannot be divided by batch_size
         pin_memory=True)
     print('DataLoader created')
-    optimizer = optim.Adam(DNN.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
     # create tensorboard writer
     # The logs will be stored NOT under the run_time, but under segan_data_out/'tblog_fdr'.
     # This way, tensorboard can show graphs for each experiment in one board
@@ -111,7 +111,9 @@ if __name__ == '__main__':
             batch_pairs_var = batch_pairs_var.to(device)
             clean_batch_var = clean_batch_var.to(device)
             noisy_batch_var = noisy_batch_var.to(device)
-            outputs = DNN(noisy_batch_var)
+            outputs = model(noisy_batch_var)
+            print(outputs)
+            print(clean_batch_var)
             loss = MSE(outputs, clean_batch_var)
             # back-propagate and update
             DNN.zero_grad()
@@ -125,25 +127,25 @@ if __name__ == '__main__':
                     .format(epoch + 1, i + 1, loss.item()))
             # record scalar data for tensorboard
             tbwriter.add_scalar('loss/loss', loss.item(), total_steps)
-            if i == 0:
-                enh_speech = DNN(fixed_test_noise)
-                enh_speech_data = enh_speech.data.cpu().numpy()  # convert to numpy array
+            #if i == 0:
+            #    enh_speech = DNN(fixed_test_noise)
+            #    enh_speech_data = enh_speech.data.cpu().numpy()  # convert to numpy array
                 #print(enh_speech_data)
-                enh_speech_data = de_emphasis(enh_speech_data, emph_coeff=0.95)
+            #    enh_speech_data = de_emphasis(enh_speech_data, emph_coeff=0.95)
 
-            for idx in range(num_gen_examples):
-                generated_sample = enh_speech_data[idx]
-                gen_fname = test_noise_filenames[idx]
-                filepath = os.path.join(
-                        gen_data_path, '{}_e{}.wav'.format(gen_fname, epoch))
+            #for idx in range(num_gen_examples):
+            #    generated_sample = enh_speech_data[idx]
+            #    gen_fname = test_noise_filenames[idx]
+            #    filepath = os.path.join(
+            #            gen_data_path, '{}_e{}.wav'.format(gen_fname, epoch))
                 # write to file
-                wavfile.write(filepath, sample_rate, generated_sample.T)
+            #    wavfile.write(filepath, sample_rate, generated_sample.T)
                 # show on tensorboard log
-                tbwriter.add_audio(
-                    '{}/{}'.format(epoch, gen_fname),
-                    generated_sample.T,
-                    total_steps,
-                    sample_rate)
+            #    tbwriter.add_audio(
+            #        '{}/{}'.format(epoch, gen_fname),
+            #        generated_sample.T,
+            #        total_steps,
+            #        sample_rate)
 
         total_steps += 1
     # save various states
