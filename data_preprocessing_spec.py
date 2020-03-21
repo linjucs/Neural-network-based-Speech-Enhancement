@@ -14,13 +14,13 @@ It provides:
     1. slicing and serializing
     2. verifying serialized data
 """
-DATA_ROOT_DIR = '/scratch4/jul/interspeech2020/testing/seen' # root direction
+DATA_ROOT_DIR = '/scratch4/jul/interspeech2020/training' # root direction
 CLEAN_TRAIN_DIR = 'clean'  # where original clean train data exist
 NOISY_TRAIN_DIR = 'noisy'  # where original noisy train data exist
 
 SER_DATA_DIR = 'ser_data'  # serialized data folder
 SER_DST_PATH = os.path.join(DATA_ROOT_DIR, SER_DATA_DIR)
-
+SCALER_PATH = 'scaler'
 
 def create_folder(fd):
     if not os.path.exists(fd):
@@ -76,7 +76,7 @@ def concate_seq(x, n_pad):
     x_concated = []
     i = n_pad
     while i + n_pad < len(x):
-        x_concated.append(x[i-n_pad:i+n_pad].flatten())
+        x_concated.append(x[i-n_pad:i+n_pad+1].flatten())
         i += 1
     return np.array(x_concated)
 
@@ -115,11 +115,16 @@ def process_and_serialize():
             noisy_spec_padding = pad_with_border(noisy_spec, n_pad)
             noisy_spec_padding_concated = concate_seq(noisy_spec_padding, n_pad)
             for idx, slice_tuple in enumerate(zip(clean_spec, noisy_spec_padding_concated)):
-                pair = np.array([slice_tuple[0], slice_tuple[1]])
-                np.save(os.path.join(SER_DST_PATH, '{}_{}'.format(filename, idx)), arr=pair)
+                pair = [slice_tuple[0], slice_tuple[1]]
+                out_path = os.path.join(SER_DST_PATH, '{}_{}'.format(filename, idx))
+                with open(out_path, 'wb') as pfile:
+                    pickle.dump(pair, pfile, protocol=pickle.HIGHEST_PROTOCOL)
+                #np.save(os.path.join(SER_DST_PATH, '{}_{}'.format(filename, idx)), arr=pair)
         scaler = preprocessing.StandardScaler(with_mean=True, with_std=True).fit(x_all)
         # Write out scaler. 
-        out_path = os.path.join(SER_DST_PATH, "scaler.p")
+        if not os.path.exists(SCALER_PATH):
+            os.makedirs(SCALER_PATH)
+        out_path = os.path.join(SCALER_PATH, "scaler.p")
         create_folder(os.path.dirname(out_path))
         pickle.dump(scaler, open(out_path, 'wb'))
     
