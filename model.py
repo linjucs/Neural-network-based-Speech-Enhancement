@@ -21,7 +21,7 @@ class DNN(nn.Module):
         self.fc5 = nn.Linear(hidden_size, hidden_size)
         self.relu5 = nn.ReLU()
         self.fc6 = nn.Linear(hidden_size, out_size)
-        self.tanh = nn.Tanh()
+        #self.tanh = nn.Tanh()
         #init weights
         self.init_weights()
     def init_weights(self):
@@ -48,6 +48,5 @@ class DNN(nn.Module):
         x = self.fc5(x)
         x = self.relu5(x)
         x = self.fc6(x)
-        x = self.tanh(x)
         return x
          

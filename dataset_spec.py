@@ -5,7 +5,7 @@ import os
 from scipy import signal
 import pickle
 
-def split_pair_to_vars(sample_batch_pair, scaler, n_pad):
+def split_pair_to_vars(sample_batch_pair, scaler_input, scaler_label,  n_pad):
     """
     Splits the generated batch data and creates combination of pairs.
     Input argument sample_batch_pair consists of a batch_size number of
@@ -22,12 +22,12 @@ def split_pair_to_vars(sample_batch_pair, scaler, n_pad):
     """
     #clean_batch = np.stack([pair[0].reshape(1, -1) for pair in sample_batch_pair])
     clean_batch = sample_batch_pair[0]
-    clean_batch = scale_on_2d(clean_batch, scaler)
+    clean_batch = scale_on_2d(clean_batch, scaler_label)
     clean_batch_var = torch.from_numpy(clean_batch).type(torch.FloatTensor)
     #noisy_batch = np.stack([pair[1].reshape(1, -1) for pair in sample_batch_pair])
     noisy_batch = sample_batch_pair[1]
     n_frames = n_pad + 1
-    noisy_batch = scale_on_input(noisy_batch,scaler, n_frames)
+    noisy_batch = scale_on_input(noisy_batch,scaler_input, n_frames)
     noisy_batch_var = torch.from_numpy(noisy_batch).type(torch.FloatTensor)
     return clean_batch_var, noisy_batch_var
  

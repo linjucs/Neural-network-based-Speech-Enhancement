@@ -16,7 +16,7 @@ import pickle
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Audio Enhancement')
-    parser.add_argument('--batch_size', default=50, type=int, help='train batch size')
+    parser.add_argument('--batch_size', default=500, type=int, help='training batch size')
     parser.add_argument('--n_pad', default=10, type=int, help='context frames')
     parser.add_argument('--num_epochs', default=100, type=int, help='training epochs')
     parser.add_argument('--hidden_size', default=2048, type=int, help='hidden size')
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_dir', default="checkpoints", type=str, help='folder for saving models, optimizer states')
     parser.add_argument('--log_dir', default="logs", type=str, help='summary data for tensorboard')
     parser.add_argument('--scaler_dir', default="scaler", type=str, help='scaler dir')
-    parser.add_argument('--data_root_dir', default="/scratch4/jul/interspeech2020/testing/seen", type=str, help='root of data folder')
+    parser.add_argument('--data_root_dir', default="/scratch4/jul/timit_dataset", type=str, help='root of data folder')
     opt = parser.parse_args()
     batch_size = opt.batch_size
     in_path = opt.data_root_dir
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         os.makedirs(gen_data_path)
     if not os.path.exists(scaler_dir):
         os.makedirs(scaler_dir)
-
+    print('here')
     # create folder for model checkpoints
     checkpoint_path = os.path.join(out_path, checkpoint_fdr)
     if not os.path.exists(checkpoint_path):
@@ -95,20 +95,21 @@ if __name__ == '__main__':
     total_steps = 1
     MSE = nn.MSELoss()
     
-    scaler_path = os.path.join(scaler_dir, "scaler.p")
-    scaler = pickle.load(open(scaler_path, 'rb'))
+    scaler_path_input = os.path.join(scaler_dir, "scaler_input.p")
+    scaler_input = pickle.load(open(scaler_path_input, 'rb'))
+    scaler_path_label = os.path.join(scaler_dir, "scaler_label.p")
+    scaler_label = pickle.load(open(scaler_path_label, 'rb'))
     for epoch in range(num_epochs):
         # add epoch number with corresponding step number
         tbwriter.add_scalar('epoch', epoch, total_steps)
         for i, sample_batch_pairs in enumerate(random_data_loader):
-            clean_batch_var, noisy_batch_var = split_pair_to_vars(sample_batch_pairs, scaler, n_pad)
-            
+            clean_batch_var, noisy_batch_var = split_pair_to_vars(sample_batch_pairs, scaler_input, scaler_label, n_pad)
             clean_batch_var = clean_batch_var.to(device)
             noisy_batch_var = noisy_batch_var.to(device)
             outputs = model(noisy_batch_var)
             loss = MSE(outputs, clean_batch_var)
             # back-propagate and update
-            model.zero_grad()
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             if (i + 1) % 20 == 0:

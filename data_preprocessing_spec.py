@@ -14,13 +14,16 @@ It provides:
     1. slicing and serializing
     2. verifying serialized data
 """
-DATA_ROOT_DIR = '/scratch4/jul/interspeech2020/training' # root direction
+DATA_ROOT_DIR = '/scratch4/jul/timit_dataset' # root direction
 CLEAN_TRAIN_DIR = 'clean'  # where original clean train data exist
 NOISY_TRAIN_DIR = 'noisy'  # where original noisy train data exist
 
 SER_DATA_DIR = 'ser_data'  # serialized data folder
 SER_DST_PATH = os.path.join(DATA_ROOT_DIR, SER_DATA_DIR)
 SCALER_PATH = 'scaler'
+
+def log_sp(x):
+    return np.log(x + 1e-08)
 
 def create_folder(fd):
     if not os.path.exists(fd):
@@ -90,6 +93,7 @@ def process_and_serialize():
     mode = 'magnitude'
     n_concat = 11
     x_all = []
+    y_all = []
     if not os.path.exists(SER_DST_PATH):
         print('Creating new destination folder for new data')
         os.makedirs(SER_DST_PATH)
@@ -110,25 +114,35 @@ def process_and_serialize():
             noisy_signal, _ = read_audio(noisy_filepath)
             clean_spec = calc_sp(clean_signal, mode)
             noisy_spec = calc_sp(noisy_signal, mode)
+            noisy_spec = log_sp(noisy_spec)
+            clean_spec = log_sp(clean_spec)
+            assert len(noisy_spec) == len(clean_spec)
             x_all.extend(noisy_spec)
+            y_all.extend(clean_spec)
             n_pad = (n_concat - 1) // 2
             noisy_spec_padding = pad_with_border(noisy_spec, n_pad)
             noisy_spec_padding_concated = concate_seq(noisy_spec_padding, n_pad)
+            #print(clean_spec.shape)
+            #print(noisy_spec_padding_concated.shape)
             for idx, slice_tuple in enumerate(zip(clean_spec, noisy_spec_padding_concated)):
-                pair = [slice_tuple[0], slice_tuple[1]]
+                pair = (slice_tuple[0], slice_tuple[1])
                 out_path = os.path.join(SER_DST_PATH, '{}_{}'.format(filename, idx))
                 with open(out_path, 'wb') as pfile:
                     pickle.dump(pair, pfile, protocol=pickle.HIGHEST_PROTOCOL)
                 #np.save(os.path.join(SER_DST_PATH, '{}_{}'.format(filename, idx)), arr=pair)
-        scaler = preprocessing.StandardScaler(with_mean=True, with_std=True).fit(x_all)
+        scaler1 = preprocessing.StandardScaler(with_mean=True, with_std=True).fit(x_all)
+        scaler2 = preprocessing.StandardScaler(with_mean=True, with_std=True).fit(y_all)
         # Write out scaler. 
         if not os.path.exists(SCALER_PATH):
             os.makedirs(SCALER_PATH)
-        out_path = os.path.join(SCALER_PATH, "scaler.p")
-        create_folder(os.path.dirname(out_path))
-        pickle.dump(scaler, open(out_path, 'wb'))
+        out_path_input = os.path.join(SCALER_PATH, "scaler_input.p")
+        out_path_label = os.path.join(SCALER_PATH, "scaler_label.p")
+        create_folder(os.path.dirname(out_path_input))
+        create_folder(os.path.dirname(out_path_label))
+        pickle.dump(scaler1, open(out_path_input, 'wb'))
+        pickle.dump(scaler2, open(out_path_label, 'wb'))
     
-        print("Save scaler to %s" % out_path)
+        print("Save scaler to %s" % out_path_input)
         print("Compute scaler finished!")
         # measure the time it took to process
         end_time = time.time()
