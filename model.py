@@ -1,4 +1,5 @@
 import os
+import torch.nn.functional as F
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -23,7 +24,7 @@ class DNN(nn.Module):
         self.fc6 = nn.Linear(hidden_size, out_size)
         #self.tanh = nn.Tanh()
         #init weights
-        self.init_weights()
+        #self.init_weights()
     def init_weights(self):
         """
         Initialize weights for fully connected layers using Xavier initialization.
@@ -37,16 +38,23 @@ class DNN(nn.Module):
         Args:
             x: input batch (signal)
         """
+        drop_rate = 0.2
         x = self.fc1(x)
         x = self.relu1(x)
+        
+        x = F.dropout(x, p=drop_rate, training=self.training)
         x = self.fc2(x)
         x = self.relu2(x)
+        x = F.dropout(x, p=drop_rate, training=self.training)
         x = self.fc3(x)
         x = self.relu3(x)
+        x = F.dropout(x, p=drop_rate, training=self.training)
         x = self.fc4(x)
         x = self.relu4(x)
+        x = F.dropout(x, p=drop_rate, training=self.training)
         x = self.fc5(x)
         x = self.relu5(x)
+        x = F.dropout(x, p=drop_rate, training=self.training)
         x = self.fc6(x)
         return x
          

@@ -57,7 +57,7 @@ if __name__ == '__main__':
     out_path = os.path.join(os.getcwd(), out_path_root, run_time)
     tblog_path = os.path.join(os.getcwd(), tblog_fdr, run_time)  # summary data for tensorboard
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    use_devices = [0,1]
+    use_devices = [0, 1]
 
     # create folder for generated data
     gen_data_path = os.path.join(out_path, gen_data_fdr)
@@ -84,7 +84,8 @@ if __name__ == '__main__':
         drop_last=True,  # drop the last batch that cannot be divided by batch_size
         pin_memory=True)
     print('DataLoader created')
-    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+    #optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer = optim.Adam(model.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
     # create tensorboard writer
     # The logs will be stored NOT under the run_time, but under segan_data_out/'tblog_fdr'.
     # This way, tensorboard can show graphs for each experiment in one board
@@ -104,6 +105,14 @@ if __name__ == '__main__':
         tbwriter.add_scalar('epoch', epoch, total_steps)
         for i, sample_batch_pairs in enumerate(random_data_loader):
             clean_batch_var, noisy_batch_var = split_pair_to_vars(sample_batch_pairs, scaler_input, scaler_label, n_pad)
+            #ori_clean = torch.exp(clean_batch_var)
+            #ori_noisy = torch.exp(noisy_batch_var)
+            #ori_clean.cpu().detach().numpy()
+            #ori_noisy.cpu().detach().numpy()
+            #plt.imshow(ori_clean[0])
+             
+            #print(clean_batch_var)
+            #print(noisy_batch_var)
             clean_batch_var = clean_batch_var.to(device)
             noisy_batch_var = noisy_batch_var.to(device)
             outputs = model(noisy_batch_var)
@@ -112,12 +121,14 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            if (i + 1) % 20 == 0:
+            if (i + 1) % 100 == 0:
                 print(
                     'Epoch {}\t'
                     'Step {}\t'
                     'loss {:.5f}'
                     .format(epoch + 1, i + 1, loss.item()))
+              #  print(outputs)
+              #  print(clean_batch_var)
             # record scalar data for tensorboard
         total_steps += 1
     # save various states

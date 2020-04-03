@@ -28,6 +28,7 @@ def split_pair_to_vars(sample_batch_pair, scaler_input, scaler_label,  n_pad):
     noisy_batch = sample_batch_pair[1]
     n_frames = n_pad + 1
     noisy_batch = scale_on_input(noisy_batch,scaler_input, n_frames)
+    #noisy_batch = scale_on_2d(noisy_batch,scaler_input)
     noisy_batch_var = torch.from_numpy(noisy_batch).type(torch.FloatTensor)
     return clean_batch_var, noisy_batch_var
  
