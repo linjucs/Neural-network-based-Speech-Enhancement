@@ -1,5 +1,0 @@
-REFERENCE	 DEGRADED	 PESQMOS	 PESQMOS	 SUBJMOS	 COND	 SAMPLE_FREQ	 CRUDE_DELAY
-clean.wav	 noisy.wav	 SQValue=1.753	 1.753	 0.000	 0	 16000	0.0000
- clean.wav	 gpu_enh.wav	 SQValue=2.556	 2.556	 0.000	 0	 16000	0.0000
- clean.wav	 fpga_enh.wav	 SQValue=2.593	 2.593	 0.000	 0	 16000	0.0000
- 
