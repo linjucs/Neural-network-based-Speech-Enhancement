@@ -16,9 +16,9 @@ import pickle
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Audio Enhancement')
-    parser.add_argument('--batch_size', default=500, type=int, help='training batch size')
+    parser.add_argument('--batch_size', default=100, type=int, help='training batch size')
     parser.add_argument('--n_pad', default=10, type=int, help='context frames')
-    parser.add_argument('--num_epochs', default=100, type=int, help='training epochs')
+    parser.add_argument('--num_epochs', default=20, type=int, help='training epochs')
     parser.add_argument('--hidden_size', default=2048, type=int, help='hidden size')
     parser.add_argument('--input_size', default=2827, type=int, help='input size 11 frame x 257')
     parser.add_argument('--output_size', default=257, type=int, help='output size')
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_dir', default="checkpoints", type=str, help='folder for saving models, optimizer states')
     parser.add_argument('--log_dir', default="logs", type=str, help='summary data for tensorboard')
     parser.add_argument('--scaler_dir', default="scaler", type=str, help='scaler dir')
-    parser.add_argument('--data_root_dir', default="/scratch4/jul/timit_dataset", type=str, help='root of data folder')
+    parser.add_argument('--data_root_dir', default="/scratch3/jul/timit_dataset", type=str, help='root of data folder')
     opt = parser.parse_args()
     batch_size = opt.batch_size
     in_path = opt.data_root_dir
@@ -102,7 +102,6 @@ if __name__ == '__main__':
     scaler_label = pickle.load(open(scaler_path_label, 'rb'))
     for epoch in range(num_epochs):
         # add epoch number with corresponding step number
-        tbwriter.add_scalar('epoch', epoch, total_steps)
         for i, sample_batch_pairs in enumerate(random_data_loader):
             clean_batch_var, noisy_batch_var = split_pair_to_vars(sample_batch_pairs, scaler_input, scaler_label, n_pad)
             #ori_clean = torch.exp(clean_batch_var)
@@ -121,6 +120,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            tbwriter.add_scalar('loss', loss.item(), total_steps)
             if (i + 1) % 100 == 0:
                 print(
                     'Epoch {}\t'

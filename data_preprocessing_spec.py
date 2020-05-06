@@ -14,7 +14,7 @@ It provides:
     1. slicing and serializing
     2. verifying serialized data
 """
-DATA_ROOT_DIR = '/scratch4/jul/timit_dataset' # root direction
+DATA_ROOT_DIR = '/scratch3/jul/timit_dataset' # root direction
 CLEAN_TRAIN_DIR = 'clean'  # where original clean train data exist
 NOISY_TRAIN_DIR = 'noisy'  # where original noisy train data exist
 
@@ -24,7 +24,8 @@ SCALER_PATH = 'scaler'
 
 def log_sp(x):
     return np.log(x + 1e-08)
-
+def write_audio(path, audio, sample_rate):
+    soundfile.write(file=path, data=audio, samplerate=sample_rate)
 def create_folder(fd):
     if not os.path.exists(fd):
         os.makedirs(fd)
