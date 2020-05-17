@@ -28,6 +28,23 @@ def de_emphasis(signal_batch, emph_coeff=0.95) -> np.array:
     """
     return signal.lfilter([1], [1, -emph_coeff], signal_batch)
 
+def pre_emphasize(x, coef=0.95):
+    if coef <= 0:
+        return x
+    x0 = np.reshape(x[0], (1,))
+    diff = x[1:] - coef * x[:-1]
+    concat = np.concatenate((x0, diff), axis=0)
+    return concat
+
+def de_emphasize(y, coef=0.95):
+    if coef <= 0:
+        return y
+    x = np.zeros(y.shape[0], dtype=np.float32)
+    x[0] = y[0]
+    for n in range(1, y.shape[0], 1):
+        x[n] = coef * x[n - 1] + y[n]
+    return x
+
 def split_pair_to_vars(sample_batch_pair):
     """
     Splits the generated batch data and creates combination of pairs.
@@ -44,13 +61,14 @@ def split_pair_to_vars(sample_batch_pair):
         noisy_batch_var(Varialbe): noisy signal batch
     """
     # pre-emphasis
-    sample_batch_pair = pre_emphasis(sample_batch_pair.numpy(), emph_coeff=0.95)
-
-    batch_pairs_var = torch.from_numpy(sample_batch_pair).type(torch.FloatTensor)  # [40 x 2 x 16384]
+ #   sample_batch_pair = pre_emphasize(sample_batch_pair.numpy())
+    batch_pairs_var = sample_batch_pair
+    #batch_pairs_var = torch.from_numpy(sample_batch_pair).type(torch.FloatTensor)  # [40 x 2 x 16384]
     clean_batch = np.stack([pair[0].reshape(1, -1) for pair in sample_batch_pair])
     clean_batch_var = torch.from_numpy(clean_batch).type(torch.FloatTensor)
     noisy_batch = np.stack([pair[1].reshape(1, -1) for pair in sample_batch_pair])
     noisy_batch_var = torch.from_numpy(noisy_batch).type(torch.FloatTensor)
+ #   print(clean_batch_var.shape)
     return batch_pairs_var, clean_batch_var, noisy_batch_var
 
 class AudioSampleGenerator(data.Dataset):

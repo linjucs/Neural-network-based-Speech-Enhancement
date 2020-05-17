@@ -11,24 +11,31 @@ from tqdm import tqdm
 from tensorboardX import SummaryWriter
 #from data_preprocess import sample_rate
 from model import DNN
+from AE_SE import AE_SE
 from dataset import AudioSampleGenerator, split_pair_to_vars, de_emphasis
+
+def model_weights_norm(model):
+    for k, v in model.named_parameters():
+        if 'weight' in k:
+            W = v.data
+            W_norm = torch.norm(W)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Audio Enhancement')
-    parser.add_argument('--batch_size', default=50, type=int, help='train batch size')
-    parser.add_argument('--num_epochs', default=100, type=int, help='training epochs')
+    parser.add_argument('--batch_size', default=32, type=int, help='train batch size')
+    parser.add_argument('--num_epochs', default=250, type=int, help='training epochs')
     parser.add_argument('--hidden_size', default=2048, type=int, help='hidden size')
     parser.add_argument('--input_size', default=16384, type=int, help='input size')
     parser.add_argument('--output_size', default=16384, type=int, help='output size')
     parser.add_argument('--num_gen_examples', default=10, type=int, help='test samples when training')
     parser.add_argument('--sample_rate', default=16000, type=int, help='audio sample rate')
-    parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
-    parser.add_argument('--output_dir', default="segan_data_out", type=str, help='output dir')
-    parser.add_argument('--ser_dir', default="ser_data", type=str, help='serialized data')
+    parser.add_argument('--lr', default=0.00005, type=float, help='learning rate')
+    parser.add_argument('--output_dir', default="AE_SE_data_out_bs32", type=str, help='output dir')
+    parser.add_argument('--ser_dir', default="ser_data_ae_se", type=str, help='serialized data')
     parser.add_argument('--gen_data_dir', default="gen_data", type=str, help='folder for saving generated data')
-    parser.add_argument('--checkpoint_dir', default="checkpoints", type=str, help='folder for saving models, optimizer states')
+    parser.add_argument('--checkpoint_dir', default="checkpoints_AE_SE", type=str, help='folder for saving models, optimizer states')
     parser.add_argument('--log_dir', default="logs", type=str, help='summary data for tensorboard')
-    parser.add_argument('--data_root_dir', default="/scratch4/jul/interspeech2020/training", type=str, help='root of data folder')
+    parser.add_argument('--data_root_dir', default="/scratch3/jul/interspeech2020_100/training", type=str, help='root of data folder')
     opt = parser.parse_args()
     batch_size = opt.batch_size
     in_path = opt.data_root_dir
@@ -63,7 +70,7 @@ if __name__ == '__main__':
     checkpoint_path = os.path.join(out_path, checkpoint_fdr)
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path)
-    model = DNN(input_size, hidden_size, out_size)
+    model = AE_SE()
     model = torch.nn.DataParallel(model.to(device), device_ids=use_devices)  # use GPU
     print(model)
     # load data
@@ -77,7 +84,9 @@ if __name__ == '__main__':
         drop_last=True,  # drop the last batch that cannot be divided by batch_size
         pin_memory=True)
     print('DataLoader created')
-    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+    #optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+    #optimizer = optim.Adam(model.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-08)
+    optimizer = optim.RMSprop(model.parameters(), lr=lr)
     # create tensorboard writer
     # The logs will be stored NOT under the run_time, but under segan_data_out/'tblog_fdr'.
     # This way, tensorboard can show graphs for each experiment in one board
@@ -111,15 +120,17 @@ if __name__ == '__main__':
             batch_pairs_var = batch_pairs_var.to(device)
             clean_batch_var = clean_batch_var.to(device)
             noisy_batch_var = noisy_batch_var.to(device)
-            outputs = model(noisy_batch_var)
-            print(outputs)
-            print(clean_batch_var)
-            loss = MSE(outputs, clean_batch_var)
+            outputs, c = model(noisy_batch_var)
+           # print(outputs.shape, clean_batch_var.shape)
+           # print(clean_batch_var)
+            #loss = MSE(outputs, clean_batch_var)
+            loss = torch.mean(torch.abs(torch.add(outputs, torch.neg(clean_batch_var)))) * 100
             # back-propagate and update
-            DNN.zero_grad()
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            if (i + 1) % 20 == 0:
+            model_weights_norm(model)
+            if (i + 1) % 10 == 0:
                 print(
                     'Epoch {}\t'
                     'Step {}\t'
@@ -149,9 +160,9 @@ if __name__ == '__main__':
 
         total_steps += 1
     # save various states
-    state_path = os.path.join(checkpoint_path, 'state-{}.pkl'.format(epoch + 1))
+    state_path = os.path.join(checkpoint_path, 'AE_SE-{}.pkl'.format(epoch + 1))
     state = {
-        'DNN': DNN.state_dict(),
+        'AE_SE': model.state_dict(),
         'optimizer': optimizer.state_dict(),
     }
     torch.save(state, state_path)

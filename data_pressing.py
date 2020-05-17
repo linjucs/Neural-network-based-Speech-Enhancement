@@ -12,12 +12,29 @@ It provides:
     1. slicing and serializing
     2. verifying serialized data
 """
-DATA_ROOT_DIR = '/scratch4/jul/interspeech2020/training' # root direction
+DATA_ROOT_DIR = '/scratch3/jul/interspeech2020_100/training' # root direction
 CLEAN_TRAIN_DIR = 'clean'  # where original clean train data exist
 NOISY_TRAIN_DIR = 'noisy'  # where original noisy train data exist
 
-SER_DATA_DIR = 'ser_data'  # serialized data folder
+SER_DATA_DIR = 'ser_data_ae_se'  # serialized data folder
 SER_DST_PATH = os.path.join(DATA_ROOT_DIR, SER_DATA_DIR)
+
+def pre_emphasize(x, coef=0.95):
+    if coef <= 0:
+        return x
+    x0 = np.reshape(x[0], (1,))
+    diff = x[1:] - coef * x[:-1]
+    concat = np.concatenate((x0, diff), axis=0)
+    return concat
+
+def de_emphasize(y, coef=0.95):
+    if coef <= 0:
+        return y
+    x = np.zeros(y.shape[0], dtype=np.float32)
+    x[0] = y[0]
+    for n in range(1, y.shape[0], 1):
+        x[n] = coef * x[n - 1] + y[n]
+    return x
 
 def verify_data():
     """
@@ -37,6 +54,7 @@ def slice_signal(filepath, window_size, stride, sample_rate):
     """
     wav, sr = librosa.load(filepath, sr=sample_rate)
     n_samples = wav.shape[0]  # contains simple amplitudes
+    wav = pre_emphasize(wav)
     hop = int(window_size * stride)
     slices = []
     for end_idx in range(window_size, len(wav), hop):
